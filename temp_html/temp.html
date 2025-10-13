@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- <link rel="stylesheet" href="./template.css" /> -->
+    <title>Séance 9 - 4</title>
+    <style>
+      :root {
+        --clr-dark: #495057;
+        --clr-light: #dee2e6;
+        --radius: 20px;
+        --padding-12: 12px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      @page {
+        size: A4;
+        margin: 0.6cm;
+      }
+      body {
+        font-size: 11px;
+        line-height: 1.5;
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+        font-family: "DejaVu Sans", sans-serif;
+        color: var(--clr-light);
+      }
+      .font-heading {
+        font-weight: bold;
+        text-align: center;
+      }
+
+      /* ---------- HEADER ---------- */
+      header {
+        display: flex;
+        justify-content: space-between;
+        gap: 30px;
+      }
+
+      .header-left,
+      .header-right {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      header > section > div {
+        background-color: var(--clr-dark);
+        padding: var(--padding-12);
+        border-radius: var(--radius);
+      }
+
+      .header-left-info {
+        display: grid;
+        grid-template-columns: 30% 30% 30%;
+        justify-content: space-between;
+        align-items: center;
+        background: white;
+        padding: 0px;
+        border-radius: 15px;
+      }
+
+      .header-left-info > div {
+        background-color: var(--clr-dark);
+        border-radius: var(--radius);
+        display: inline-block;
+        display: flex;
+        gap: 5px;
+        align-items: center; /* vertically center text and numbers */
+
+        padding: var(--padding-12);
+      }
+
+      .header-right > div:last-child {
+        flex: 1;
+      }
+
+      /* ---------- MAIN ---------- */
+      main {
+        display: flex;
+        flex-direction: column;
+        gap: 17px;
+      }
+      .parcours1 {
+        display: flex;
+        flex-direction: column;
+        gap: 25px;
+      }
+      .parcours2 {
+        display: flex;
+        gap: 30px;
+      }
+      .parcours2 > section {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .main-section {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .main-section-heading {
+        background-color: var(--clr-dark);
+        border-radius: var(--radius);
+        padding: 10px;
+      }
+      .main-section > div:last-child {
+        background-color: var(--clr-light);
+        color: var(--clr-dark);
+        border-radius: 30px;
+        padding: 10px 10px 17px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <section class="header-left">
+        <div class="header-date">Date:</div>
+        
+        <div class="header-left-info">
+          <div><span>Parcours:</span> <span>1</span></div>
+          <div><span>Palier:</span> <span>4</span></div>
+          <div><span>Séance:</span> <span>9</span></div>
+          
+        </div>
+        <div class="header-horaire font-heading">
+          Groupe: ...... Horaire: du ........... à ............
+        </div>
+        
+        <div class="header-horaire font-heading">
+          Groupe: ...... Horaire: du ........... à ............
+        </div>
+      </section>
+      <section class="header-right">
+        <div class="header-objectif font-heading">🎯 Objectifs:</div>
+        
+        <div>Amener les élèves à lire, écrire et utiliser des mots contenant les graphèmes complexes : ill, ail, eil, euil, ouil.</div>
+        
+      </section>
+    </header>
+    <main>
+      
+      <section class="parcours1">
+        <div class="main-section">
+          <div class="main-section-heading font-heading">
+            🔁 Rituel d’ouverture: 10min
+          </div>
+          <div>Les élèves commencent par une dictée flash de mots simples, puis corrigent ensemble sur ardoise.</div>
+        </div>
+        <div class="main-section">
+          <div class="main-section-heading font-heading">
+            🗣️ Vocabulaire: 20min
+          </div>
+          <div>Les élèves découvrent et répètent les mots : famille, portail, réveil, fauteuil, fenouil, tailleur, abeille, feuille.</div>
+        </div>
+        <div class="main-section">
+          <div class="main-section-heading font-heading">
+            📖 Activités de lecture : 40min
+          </div>
+          <div>Les élèves lisent des syllabes et des mots contenant les graphèmes complexes, puis des phrases simples.</div>
+        </div>
+        <div class="main-section">
+          <div class="main-section-heading font-heading">
+            ✍️ Activités d’écriture : 40min
+          </div>
+          <div>Les élèves écrivent sur ardoise les mots dictés après une démonstration au tableau.</div>
+        </div>
+        <div class="main-section">
+          <div class="main-section-heading font-heading">
+            🧩 Pratique autonome : 20min
+          </div>
+          <div>Les élèves réalisent des activités de lecture à voix basse en binômes et recopient les mots étudiés.</div>
+        </div>
+        <div class="main-section">
+          <div class="main-section-heading font-heading">🎲 Jeu : 10min</div>
+          <div>Les élèves participent au jeu du panier des graphèmes : ils piochent des cartes et lisent les mots à haute voix.</div>
+        </div>
+        <div class="main-section">
+          <div class="main-section-heading font-heading">
+            📝 Notes et observations:
+          </div>
+          <div>Les élèves ont montré un bon engagement, mais quelques difficultés ont été notées dans la reconnaissance des graphèmes.</div>
+        </div>
+      </section>
+      
+    </main>
+  </body>
+</html>
