@@ -2,31 +2,33 @@ import csv
 import os
 import json
 import datetime
-from pptx import Presentation
 from openai import OpenAI
-import gspread
-from google.oauth2.service_account import Credentials
 from jinja2 import Environment, FileSystemLoader
 # from weasyprint import HTML
 from playwright.sync_api import sync_playwright
+from dotenv import load_dotenv
 
+from preprocess_data import extract_title_info
 
+load_dotenv()
 # ---------------------------
 # CONFIG
 # ---------------------------
 TEACHER_SUBJECT = os.getenv("TEACHER_SUBJECT", "French")
-PARCOURS_COUNT = os.getenv("PARCOURS_COUNT", 1)
+PARCOURS_COUNT = int(os.getenv("PARCOURS_COUNT"))
+
+print(f"Using PARCOURS_COUNT={PARCOURS_COUNT}")
 
 CSV_FILE = "cahier_journal_2parcours.csv" if PARCOURS_COUNT == 2 else "cahier_journal.csv"
 PPTX_FILE = "Français_Niv5_Parcour1_Palier3_Séance1.pptx"
 
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", "outputs_mindmaps")
 PPTX_DIR = "./lessons"
-SHEET_ID = os.getenv("SHEET_ID")  # from Google Sheets URL
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 HEADERS_PARCOURS1 = [
     "Date",
+    "titre",
     "Parcours",
     "Palier",
     "Séance",
@@ -40,11 +42,12 @@ HEADERS_PARCOURS1 = [
     "Notes"
 ]
 HEADERS_PARCOURS2 = [
-    "Date",
-    "Palier1", "Séance1", "Objectif1", "Rituel1", "Vocabulaire1", "Lecture1", "Écriture1", "Pratique autonome1", "Jeu1", "Notes1",
+    "Date", "titre1",
+    "Palier1", "Séance1", "Objectif1", "Rituel1", "Vocabulaire1", "Lecture1", "Écriture1", "Pratique autonome1", "Jeu1", "Notes1","titre2",
     "Palier2", "Séance2", "Objectif2", "Rituel2", "Vocabulaire2", "Lecture2", "Écriture2", "Pratique autonome2", "Jeu2", "Notes2",
 ]
 HEADERS = HEADERS_PARCOURS2 if PARCOURS_COUNT == 2 else HEADERS_PARCOURS1
+
 sample_csv_row = {
     "Date": "2025-10-05",
     "Parcours": "Parcours 1",
@@ -90,15 +93,17 @@ csv_data_2parcours = {
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
+
 # ---------------------------
 # HELPERS
 # ---------------------------
-def get_pptx_pairs(pptx_dir):
-    parcours1 = sorted([f for f in os.listdir(pptx_dir) if "Parcour1" in f])
-    parcours2 = sorted([f for f in os.listdir(pptx_dir) if "Parcour2" in f])
-    pairs = list(zip(parcours1, parcours2))  # (p1, p2)
-    return pairs
-
+def load_lessons_data(json_path="data/lessons.json"):
+    """Load all lessons data extracted by extract_lessons.py"""
+    if not os.path.exists(json_path):
+        raise FileNotFoundError(f"{json_path} not found. Run extract_lessons.py first.")
+    with open(json_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+    
 def ensure_csv_exists():
     """Check if CSV exists, if not create it with headers."""
     print("Checking for CSV file...")
@@ -108,31 +113,6 @@ def ensure_csv_exists():
             writer = csv.writer(f)
             writer.writerow(HEADERS)
 
-def extract_title_info(pptx_path: str):
-    """Extract the title from filename and palier/séance numbers."""
-    print("Extracting title info...")
-    filename = os.path.basename(pptx_path)
-    name, _ = os.path.splitext(filename)
-
-    palier, seance = None, None
-    parts = name.split("_")
-    for part in parts:
-        if part.lower().startswith("palier"):
-            palier = part.replace("Palier", "").replace("palier", "")
-        if part.lower().startswith("séance") or part.lower().startswith("seance"):
-            seance = part.replace("Séance", "").replace("séance", "").replace("Seance", "").replace("seance", "")
-
-    title = name.replace("_", " ")
-    print(f"Titre: {title} | Palier: {palier} | Séance: {seance if seance else '...'}")
-    return title, palier, seance
-
-def entry_exists_in_sheet(sheet, palier, seance):
-    """Check if (Palier, Séance) already exist in the Google Sheet."""
-    data = sheet.get_all_records()  # returns list[dict]
-    for row in data:
-        if str(row.get("Palier", "")).strip() == str(palier).strip() and str(row.get("Séance", "")).strip() == str(seance).strip():
-            return True
-    return False
 
 def entry_exists_in_csv(palier, seance):
     """Check if (Palier, Séance) already exist in local CSV."""
@@ -146,8 +126,8 @@ def entry_exists_in_csv(palier, seance):
     return False
 
 def should_process(pptx_path: str) -> bool:
-    """Return False if (Palier, Séance) already exist in CSV or Google Sheet."""
-    title, palier, seance = extract_title_info(pptx_path)
+    """Return False if (Palier, Séance) already exist in CSV"""
+    title, parcours, palier, seance = extract_title_info(pptx_path)
 
     # If missing numbers, skip automatically
     if not palier or not seance:
@@ -159,35 +139,13 @@ def should_process(pptx_path: str) -> bool:
         print(f"⏩ Skipping {pptx_path} — already in CSV (Palier {palier}, Séance {seance}).")
         return False
 
-    # Check Google Sheet (optional if you trust CSV as local cache)
-    # SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-    # creds = Credentials.from_service_account_file("service_account.json", scopes=SCOPES)
-    # gc = gspread.authorize(creds)
-    # sheet = gc.open_by_key(SHEET_ID).sheet1
-
-    # if entry_exists_in_sheet(sheet, palier, seance):
-    #     print(f"⏩ Skipping {pptx_path} — already in Google Sheet (Palier {palier}, Séance {seance}).")
-    #     return False
-
     return True
 
-def process_with_ai(pptx_path: str):
+def process_with_ai(title, parcours, palier, seance, content):
     """Send PPTX content to AI and return structured JSON with CSV row + mindmap."""
     print("Processing with AI...")
-    title, palier, seance = extract_title_info(pptx_path)
+    
     today = datetime.date.today().strftime("%Y-%m-%d")
-
-    # Load all slide text
-    prs = Presentation(pptx_path)
-    slides_text = []
-    for i, slide in enumerate(prs.slides, start=1):
-        slide_content = []
-        for shape in slide.shapes:
-            if shape.has_text_frame:
-                slide_content.append(shape.text.strip())
-        slides_text.append(f"--- Slide {i} ---\n" + "\n".join(slide_content))
-    full_text = "\n\n".join(slides_text)
-
     # ---------------------------
     # AI PROMPT
     # ---------------------------
@@ -200,9 +158,10 @@ Follow **exactly** this structure and phrasing style, adapting the content to th
 {{
   "csv_row": {{
     "Date": "{today}",
-    "Parcours": "Parcours 1",
-    "Palier": {palier},
-    "Séance": {seance},
+    "titre": "{title}",
+    "Parcours": "{parcours}",
+    "Palier": "{palier}",
+    "Séance": "{seance}",
     "Objectif": "Amener les élèves à comprendre, lire et produire des mots simples du vocabulaire et identifier/écrire les lettres a, i, b, d, e, é, o.",
     "Rituel": "Les élèves chantent « Bonjour les amis », réalisent une dictée flash de mots simples et corrigent collectivement sur ardoise.",
     "Vocabulaire": "Les élèves découvrent et répètent les mots de vocabulaire : ardoise, immeuble, olive, banane, dindon, melon, école, bébé.",
@@ -264,7 +223,7 @@ Rules:
 - Base all content on the lesson slides below.
 
 Lesson slides content:
-{full_text}
+{content}
 """
 
     response = client.chat.completions.create(
@@ -280,6 +239,7 @@ Lesson slides content:
 
     # Try parsing JSON output
     try:
+        raw_result = raw_result.replace("None", "null")
         data = json.loads(raw_result)
         csv_data = data["csv_row"]
         mindmap = data["mindmap"]
@@ -290,32 +250,10 @@ Lesson slides content:
 
     return csv_data, mindmap
 
-def append_to_google_sheet(json_row: dict):
-    """Append a new row to the Google Sheet instead of a CSV file."""
-    try:
-        SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-        creds = Credentials.from_service_account_file("service_account.json", scopes=SCOPES)
-
-        # Connect to Sheets
-        gc = gspread.authorize(creds)
-        sheet = gc.open_by_key(SHEET_ID).sheet1  # Use .worksheet("name") if not the first tab
-        existing_data = sheet.get_all_values()
-
-        # If empty → add headers first
-        if not existing_data:
-            sheet.append_row(HEADERS)
-            print("✅ Added headers to new sheet")
-        # Ensure all columns are in correct order
-        row = [json_row.get(header, "") for header in HEADERS]
-        sheet.append_row(row)
-        print("✅ Row successfully appended to Google Sheet.")
-    except Exception as e:
-        print(f"⚠️ Google Sheets sync failed: {e}")
-        
-    # Define scope for Sheets access
 
 def append_to_csv(csv_data: dict):
     """Append a dict row (12 fields) to CSV safely."""
+    ensure_csv_exists()
     print("Adding entry to CSV file...")
     with open(CSV_FILE, "a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=HEADERS, quoting=csv.QUOTE_ALL)
@@ -331,73 +269,62 @@ def save_mindmap(pptx_path: str, mindmap: str):
         f.write(mindmap)
     return filename
 
-# def generate_pdf_from_csv_data(csv_row, pdf_filename):
-#     # Load the Jinja2 environment (points to your templates folder)
-#     env = Environment(loader=FileSystemLoader("templates"))
-#     template = env.get_template("new-template.html")
-
-#     # Render HTML with your data
-#     html_content = template.render(csv_row=csv_row)
-
-#     # Make sure output directory exists
-#     os.makedirs("output_pdfs", exist_ok=True)
-#     pdf_path = os.path.join("output_pdfs", pdf_filename)
-
-#     # Generate PDF
-#     HTML(string=html_content).write_pdf(pdf_path)
-
-#     print(f"✅ PDF created: {pdf_path}")
-
 # PROCCES 2 PARCOURS
-def process_two_parcours(pptx_path1, pptx_path2):
-    csv_data1, mindmap1 = process_with_ai(pptx_path1)
-    csv_data2, mindmap2 = process_with_ai(pptx_path2)
+def process_two_parcours(title1, parcours1, palier1, seance1, content1,
+                         title2, parcours2, palier2, seance2, content2):
+    # Process both parcours via AI
+    csv_data1, mindmap1 = process_with_ai(title1, parcours1, palier1, seance1, content1)
+    csv_data2, mindmap2 = process_with_ai(title2, parcours2, palier2, seance2, content2)
 
+    # Validate outputs
     if not csv_data1 or not csv_data2:
         print("❌ Skipped one parcours due to invalid AI output.")
         return
 
+    # Combine structured data
     combined = {
-        "Date": csv_data1.get("Date"),
-        # parcours 1
-        "Palier1": csv_data1.get("Palier"),
-        "Séance1": csv_data1.get("Séance"),
-        "Objectif1": csv_data1.get("Objectif"),
-        "Rituel1": csv_data1.get("Rituel"),
-        "Vocabulaire1": csv_data1.get("Vocabulaire"),
-        "Lecture1": csv_data1.get("Lecture"),
-        "Écriture1": csv_data1.get("Écriture"),
-        "Pratique autonome1": csv_data1.get("Pratique autonome"),
-        "Jeu1": csv_data1.get("Jeu"),
-        "Notes1": csv_data1.get("Notes"),
-        # parcours 2
-        "Palier2": csv_data2.get("Palier"),
-        "Séance2": csv_data2.get("Séance"),
-        "Objectif2": csv_data2.get("Objectif"),
-        "Rituel2": csv_data2.get("Rituel"),
-        "Vocabulaire2": csv_data2.get("Vocabulaire"),
-        "Lecture2": csv_data2.get("Lecture"),
-        "Écriture2": csv_data2.get("Écriture"),
-        "Pratique autonome2": csv_data2.get("Pratique autonome"),
-        "Jeu2": csv_data2.get("Jeu"),
-        "Notes2": csv_data2.get("Notes"),
+        "Date": csv_data1.get("Date", ""),
+        # Parcours 1
+        "titre1": csv_data1.get("titre", ""),
+        "Palier1": csv_data1.get("Palier", ""),
+        "Séance1": csv_data1.get("Séance", ""),
+        "Objectif1": csv_data1.get("Objectif", ""),
+        "Rituel1": csv_data1.get("Rituel", ""),
+        "Vocabulaire1": csv_data1.get("Vocabulaire", ""),
+        "Lecture1": csv_data1.get("Lecture", ""),
+        "Écriture1": csv_data1.get("Écriture", ""),
+        "Pratique autonome1": csv_data1.get("Pratique autonome", ""),
+        "Jeu1": csv_data1.get("Jeu", ""),
+        "Notes1": csv_data1.get("Notes", ""),
+        # Parcours 2
+        "titre2": csv_data1.get("titre", ""),
+        "Palier2": csv_data2.get("Palier", ""),
+        "Séance2": csv_data2.get("Séance", ""),
+        "Objectif2": csv_data2.get("Objectif", ""),
+        "Rituel2": csv_data2.get("Rituel", ""),
+        "Vocabulaire2": csv_data2.get("Vocabulaire", ""),
+        "Lecture2": csv_data2.get("Lecture", ""),
+        "Écriture2": csv_data2.get("Écriture", ""),
+        "Pratique autonome2": csv_data2.get("Pratique autonome", ""),
+        "Jeu2": csv_data2.get("Jeu", ""),
+        "Notes2": csv_data2.get("Notes", "")
     }
 
-    # Save as usual
+    # Save to CSV
     append_to_csv(combined)
-    # append_to_google_sheet(combined)
 
-    # Combine mindmaps into one markdown file
-    mindmap_combined = f"## Parcours 1\n{mindmap1}\n\n---\n\n## Parcours 2\n{mindmap2}"
-    title, _, _ = extract_title_info(pptx_path1)
-    md_path = os.path.join(OUTPUT_DIR, f"{title}_2parcours.md")
+    # Combine mindmaps into one Markdown file
+    mindmap_combined = f"## Parcours 1 – {title1}\n{mindmap1}\n\n---\n\n## Parcours 2 – {title2}\n{mindmap2}"
+    md_filename = f"{palier1}_P1S{seance1}_P2S{seance2}_2parcours.md"
+    md_path = os.path.join(OUTPUT_DIR, md_filename)
     with open(md_path, "w", encoding="utf-8") as f:
         f.write(mindmap_combined)
 
-    # PDF
-    pdf_filename = f"{combined['Palier1']}_P1S{combined['Séance1']}_P2S{combined['Séance2']}.pdf"
+    # Generate PDF
+    pdf_filename = f"{palier1}_P1S{seance1}_P2S{seance2}.pdf"
     generate_pdf_from_csv_data(combined, pdf_filename)
-    print(f"✅ Combined PDF → {pdf_filename}")
+    print(f"✅ Combined PDF generated: {pdf_filename}")
+
 
 def generate_pdf_from_csv_data(csv_row, pdf_filename):
     # 1️⃣ Render HTML with Jinja2
@@ -431,72 +358,75 @@ def generate_pdf_from_csv_data(csv_row, pdf_filename):
     print(f"✅ PDF created: {pdf_path}")
     return pdf_path
 
-def choose_pptx_files(pptx_dir):
-    """Let the user manually select two PPTX files to pair."""
-    all_files = [f for f in os.listdir(pptx_dir) if f.lower().endswith(".pptx")]
-    if not all_files:
-        print("⚠️ No PPTX files found in directory.")
+def choose_lessons():
+    """Let the user manually select two lessons (already loaded from JSON) to pair."""
+    lessons = load_lessons_data()
+    if not lessons:
+        print("⚠️ No lessons available in data/lessons.json.")
         exit()
 
-    print("\n📂 Available PPTX files:")
-    for i, f in enumerate(all_files, start=1):
-        print(f"  {i}. {f}")
+    print("\n📘 Available lessons:")
+    for i, lesson in enumerate(lessons, start=1):
+        print(f"  {i}. {lesson['title']} (Parcours {lesson['parcours']} - Palier {lesson['palier']} - Séance {lesson['seance']})")
 
     try:
-        idx1 = int(input("\nEnter number for Parcours 1 file: ")) - 1
-        idx2 = int(input("Enter number for Parcours 2 file: ")) - 1
+        idx1 = int(input("\nEnter number for Parcours 1 lesson: ")) - 1
+        idx2 = int(input("Enter number for Parcours 2 lesson: ")) - 1
     except ValueError:
         print("❌ Invalid input. Please enter valid numbers.")
         exit()
 
-    if idx1 not in range(len(all_files)) or idx2 not in range(len(all_files)):
+    if idx1 not in range(len(lessons)) or idx2 not in range(len(lessons)):
         print("❌ Invalid selection.")
         exit()
 
-    pptx_path1 = os.path.join(pptx_dir, all_files[idx1])
-    pptx_path2 = os.path.join(pptx_dir, all_files[idx2])
-    print(f"\n✅ Selected:\nParcours 1 → {all_files[idx1]}\nParcours 2 → {all_files[idx2]}")
-    return pptx_path1, pptx_path2
+    lesson1 = lessons[idx1]
+    lesson2 = lessons[idx2]
+
+    print(f"\n✅ Selected:")
+    print(f"  Parcours 1 → {lesson1['title']} (Palier {lesson1['palier']}, Séance {lesson1['seance']})")
+    print(f"  Parcours 2 → {lesson2['title']} (Palier {lesson2['palier']}, Séance {lesson2['seance']})")
+
+    return lesson1, lesson2
+
 
 # ---------------------------
 # MAIN
 # ---------------------------
 if __name__ == "__main__":
-      # or "path/to/folder"
-    # pptx_files = [f for f in os.listdir(PPTX_DIR) if f.lower().endswith(".pptx")]
-    generate_pdf_from_csv_data(sample_csv_row, "test_layout.pdf")
-    # generate_pdf_from_csv_data(csv_data_2parcours, "test_2parcours.pdf")
+    lessons = load_lessons_data()
+    print(f"📘 Loaded {len(lessons)} lessons from JSON")
 
-
-    ensure_csv_exists()
     if PARCOURS_COUNT == 1:
-        pptx_files = [f for f in os.listdir(PPTX_DIR) if f.lower().endswith(".pptx")]
-        if not pptx_files:
-            print("⚠️ No PPTX files found in directory.")
-            exit()
-        for pptx_filename in pptx_files:
-            pptx_path = os.path.join(PPTX_DIR, pptx_filename)
-            # ✅ Skip if already processed (exists in CSV or Google Sheet)
-            if not should_process(pptx_path):
+        for lesson in lessons:
+            title = lesson["title"]
+            parcours = lesson["parcours"]
+            palier = lesson["palier"]
+            seance = lesson["seance"]
+            content = lesson["content"]
+
+            # ✅ Skip if already processed (exists in CSV)
+            if not should_process(f"{parcours}_Palier{palier}_Seance{seance}"):
                 continue
+
             print("=" * 60)
-            print(f"🚀 Processing file: {pptx_filename}")
+            print(f"🚀 Processing: {title} (Palier {palier}, Séance {seance})")
             print("=" * 60)
 
-            csv_data, mindmap = process_with_ai(pptx_path)
+            csv_data, mindmap = process_with_ai(title, parcours, palier, seance, content)
 
             if csv_data and mindmap:
-                append_to_google_sheet(csv_data)
                 append_to_csv(csv_data)
-                md_file = save_mindmap(pptx_path,mindmap)
+                md_file = save_mindmap(f"{parcours}_Palier{palier}_Seance{seance}", mindmap)
                 print(f"✅ Processed successfully → {md_file}")
-                pdf_filename = f"{csv_data['Palier']}_Séance{csv_data['Séance']}.pdf"
+                pdf_filename = f"Palier{palier}_Séance{seance}.pdf"
                 generate_pdf_from_csv_data(csv_data, pdf_filename)
                 print(f"📄 PDF created → {pdf_filename}")
-
             else:
-                print(f"❌ Skipped {pptx_filename} (invalid AI response)")
+                print(f"❌ Skipped {title} (invalid AI response)")
+
     else:
-         # Manual selection for 2 parcours
-        pptx_path1, pptx_path2 = choose_pptx_files(PPTX_DIR)
-        process_two_parcours(pptx_path1, pptx_path2)
+        # 🔁 Manual selection for 2 parcours (interactive)
+        lesson1, lesson2 = choose_lessons()
+        process_two_parcours(lesson1["title"], lesson1["parcours"], lesson1["palier"], lesson1["seance"], lesson1["content"],
+                             lesson2["title"], lesson2["parcours"], lesson2["palier"], lesson2["seance"], lesson2["content"])
