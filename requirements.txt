@@ -1,4 +1,9 @@
 flask
 flask-cors
+gunicorn
 playwright
 pandas
+openai
+python-pptx
+Jinja2
+python-dotenv

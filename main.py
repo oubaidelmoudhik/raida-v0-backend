@@ -113,6 +113,14 @@ Analyze the lesson content and fill in the content for each step. Each step shou
 - icon (emoji)
 - content (description in Arabic based on slides)
 
+**OBJECTIVE EXTRACTION (CRITICAL):**
+- Extract the main pedagogical objective from the lesson content.
+- The objective should be specific, measurable, and action-oriented.
+- Example: "تعلم قراءة وكتابة الأعداد من الملايين بالأرقام والحروف"
+- Example: "حل مسائل متعلقة بوضعية البحث عن الكل أو الجزء"
+- If no explicit objective is found, infer it from the lesson title and content.
+- Do NOT use placeholders like "هدف الدرس" or "......".
+
 **PHRASING STYLE (CRITICAL):**
 - Use **pedagogical phrasing** describing what the students do.
 - Start sentences with **"يقوم التلاميذ بـ..."** or **"يبدأ التلاميذ..."** or **"يشارك التلاميذ..."**.
@@ -168,6 +176,14 @@ Analyze the lesson content and fill in the content for each step. Each step shou
 - icon (emoji)
 - content (description in French based on slides)
 
+**OBJECTIVE EXTRACTION (CRITICAL):**
+- Extract the main pedagogical objective from the lesson content.
+- The objective should be specific, measurable, and action-oriented.
+- Example: "Utiliser les indicateurs de lieu et leurs contraires"
+- Example: "Lire et comprendre des phrases sur les déplacements"
+- If no explicit objective is found, infer it from the lesson title and content.
+- Do NOT use placeholders like "Objectif de la leçon" or "......".
+
 **PHRASING STYLE (CRITICAL):**
 - Use **pedagogical phrasing** describing what the students do.
 - Start sentences with **"Les élèves [action]..."**.
@@ -222,15 +238,33 @@ Lesson slides content:
 
     raw_result = response.choices[0].message.content.strip()
 
+
     # Try parsing JSON output
     try:
         raw_result = raw_result.replace("None", "null")
         data = json.loads(raw_result)
         lesson_data = data["lesson_data"]
+        
+        # Validate required fields
+        if not lesson_data.get("objective") or lesson_data["objective"] in ["......", "Objectif de la leçon", "هدف الدرس"]:
+            print("⚠️  Warning: Objective is missing or placeholder. Using fallback.")
+            lesson_data["objective"] = f"Lesson on {subject} - Session {session}"
+        
+        if not lesson_data.get("steps") or not isinstance(lesson_data["steps"], list):
+            print("❌ Error: Steps are missing or invalid")
+            return None
+        
+        if len(lesson_data["steps"]) == 0:
+            print("❌ Error: No steps extracted")
+            return None
+        
         print(f"✅ Successfully extracted {len(lesson_data.get('steps', []))} lesson steps")
     except json.JSONDecodeError as e:
         print("❌ Invalid JSON received:", e)
         print("Raw output:\n", raw_result)
+        return None
+    except KeyError as e:
+        print(f"❌ Missing required field: {e}")
         return None
 
     return lesson_data

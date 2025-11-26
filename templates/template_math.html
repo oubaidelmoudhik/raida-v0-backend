@@ -18,13 +18,25 @@
         size: A4;
         margin: 0.6cm;
       }
+      @font-face {
+        font-family: 'Cairo';
+        src: url('../static/fonts/Cairo-Regular.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: 'Cairo';
+        src: url('../static/fonts/Cairo-Bold.ttf') format('truetype');
+        font-weight: bold;
+        font-style: normal;
+      }
       body {
         font-size: 11px;
         line-height: 1.5;
         display: flex;
         flex-direction: column;
         gap: 30px;
-        font-family: "DejaVu Sans", "Arial", sans-serif;
+        font-family: 'Cairo', "DejaVu Sans", "Arial", sans-serif;
         color: var(--clr-light);
         direction: rtl;
         text-align: right;
