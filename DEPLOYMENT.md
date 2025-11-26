@@ -1,46 +1,56 @@
-# Railway Deployment Guide
+# Render Deployment Guide
 
 ## Files Added/Updated
 
-1. **requirements.txt** - Added all dependencies including `gunicorn`
-2. **runtime.txt** - Specifies Python 3.13
-3. **build.sh** - Installs Playwright browsers
-4. **Procfile** - Already configured with `web: gunicorn app:app`
+1. **requirements.txt** – Includes all dependencies (`gunicorn`, `openai`, `python-pptx`, `Jinja2`, `python-dotenv`, etc.)
+2. **runtime.txt** – Specifies Python 3.13 (optional for Render, but kept for clarity)
+3. **build.sh** – Installs Playwright browsers needed for PDF generation
+4. **Procfile** – `web: gunicorn app:app` (used by Render when not using a Dockerfile)
+5. **render.yaml** – Render service definition (added in the backend folder)
 
-## Railway Configuration
+## Render Configuration
 
-### 1. Environment Variables
-Add these in Railway dashboard:
-- `OPENAI_API_KEY` - Your OpenAI API key
-- `PORT` - Railway sets this automatically
-- `FLASK_DEBUG` - Set to `0` for production
+### 1. Create `render.yaml`
+Create a file named `render.yaml` in the backend directory with the following content:
 
-### 2. Build Command
-In Railway settings, set the build command to:
-```bash
-pip install -r requirements.txt && bash build.sh
+```yaml
+services:
+  - type: web
+    name: raida-backend
+    env: python
+    buildCommand: pip install -r requirements.txt && bash build.sh
+    startCommand: gunicorn app:app
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: FLASK_DEBUG
+        sync: false
 ```
 
-### 3. Start Command
-Railway should auto-detect the Procfile, but if needed:
-```bash
-gunicorn app:app
-```
+Render will automatically provide the `PORT` environment variable; you do not need to set it manually.
 
-### 4. Important Notes
-- **Playwright**: The build script installs Chromium browser needed for PDF generation
-- **Static Files**: Make sure the `static/fonts` directory is included in deployment
-- **Data Directory**: Ensure `data/lessons.json` is accessible
+### 2. Environment Variables
+Add the following variables in the Render dashboard for the service:
+- `OPENAI_API_KEY` – Your OpenAI API key
+- `FLASK_DEBUG` – Set to `0` for production (optional)
 
-## Frontend (Vercel) Configuration
+### 3. Build & Deploy
+Render will run the `buildCommand` defined in `render.yaml` which installs dependencies and the Playwright browsers. After the build completes, it will execute the `startCommand` (`gunicorn app:app`).
 
-Update your frontend API calls to point to your Railway backend URL:
-- Replace `http://localhost:5000` with your Railway URL
-- Example: `https://your-app.railway.app`
+### 4. Static & Data Files
+Ensure the following directories are included in the repository so Render can serve them:
+- `static/fonts` – Contains the Cairo font files used for Arabic PDFs
+- `data/lessons.json` – Lesson metadata accessed by the API
 
-## Troubleshooting
+### 5. Frontend (Vercel) Adjustments
+Update your Vercel frontend to point to the Render backend URL:
+- Replace any occurrence of `http://localhost:5000` with `https://<your-render-service>.onrender.com`
 
-If Playwright fails:
-- Railway might need additional system dependencies
-- Consider using a Docker deployment for better control
-- Alternative: Use a different PDF generation library that doesn't require browsers
+## Important Notes
+- **Playwright**: The `build.sh` script installs Chromium, which Render’s build environment supports.
+- **Procfile**: Render can use the Procfile if you prefer not to use `render.yaml`; the start command remains `gunicorn app:app`.
+- **Testing Locally**: Run `gunicorn app:app` locally to verify the production entry point before deploying.
+
+---
+
+All previous Railway‑specific sections have been removed. This guide now focuses solely on deploying the backend to Render.
