@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>الحصة {{ lesson_data.session }} - الفترة {{ lesson_data.period }}</title>
+    <style>
+      :root {
+        --clr-dark: #495057;
+        --clr-light: #dee2e6;
+        --radius: 20px;
+        --padding-12: 12px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      @page {
+        size: A4;
+        margin: 0.6cm;
+      }
+      body {
+        font-size: 11px;
+        line-height: 1.5;
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+        font-family: "DejaVu Sans", "Arial", sans-serif;
+        color: var(--clr-light);
+        direction: rtl;
+        text-align: right;
+      }
+      .font-heading {
+        font-weight: bold;
+        text-align: center;
+      }
+
+      /* ---------- HEADER ---------- */
+      header {
+        display: flex;
+        justify-content: space-between;
+        gap: 30px;
+        direction: rtl;
+        width: 100%;
+      }
+
+      .header-left,
+      .header-right {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      header > section > div {
+        background-color: var(--clr-dark);
+        padding: var(--padding-12);
+        border-radius: var(--radius);
+        direction: rtl;
+        text-align: right;
+      }
+
+      .header-left-info {
+        display: grid;
+        grid-template-columns: 30% 30% 30%;
+        justify-content: space-between;
+        align-items: center;
+        background: white;
+        padding: 0px;
+        border-radius: 15px;
+        direction: rtl;
+      }
+
+      .header-left-info > div {
+        background-color: var(--clr-dark);
+        border-radius: var(--radius);
+        display: inline-block;
+        display: flex;
+        gap: 5px;
+        align-items: center;
+        padding: var(--padding-12);
+        direction: rtl;
+        justify-content: flex-start;
+      }
+
+      .header-right > div:last-child {
+        flex: 1;
+      }
+
+      /* ---------- MAIN ---------- */
+      main {
+        display: flex;
+        flex-direction: column;
+        gap: 17px;
+        direction: rtl;
+      }
+      
+      .main-section {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        direction: rtl;
+      }
+      
+      .main-section-heading {
+        background-color: var(--clr-dark);
+        border-radius: var(--radius);
+        padding: 10px;
+        direction: rtl;
+        text-align: right;
+      }
+      
+      .main-section > div:last-child {
+        background-color: var(--clr-light);
+        color: var(--clr-dark);
+        border-radius: 30px;
+        padding: 10px 10px 17px;
+        direction: rtl;
+        text-align: right;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <section class="header-right">
+        <div class="header-objectif font-heading">🎯 الأهداف:</div>
+        <div>{{ lesson_data.objective }}</div>
+      </section>
+      <section class="header-left">
+        <div class="header-left-info">
+          <div><span>الحصة:</span> <span>{{ lesson_data.session }}</span></div>
+          <div><span>الأسبوع:</span> <span>{{ lesson_data.week }}</span></div>
+          <div><span>الفترة:</span> <span>{{ lesson_data.period }}</span></div>
+        </div>
+      </section>
+    </header>
+    <main>
+      {% for step in lesson_data.steps %}
+      <div class="main-section">
+        <div class="main-section-heading font-heading">
+          {{ step.icon }} {{ step.name }}{% if step.duration %}: {{ step.duration }}{% endif %}
+        </div>
+        <div>{{ step.content }}</div>
+      </div>
+      {% endfor %}
+    </main>
+  </body>
+</html>

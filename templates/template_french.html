@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Séance {{ lesson_data.session }} - Période {{ lesson_data.period }}</title>
+    <style>
+      :root {
+        --clr-dark: #495057;
+        --clr-light: #dee2e6;
+        --radius: 20px;
+        --padding-12: 12px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      @page {
+        size: A4;
+        margin: 0.6cm;
+      }
+      body {
+        font-size: 11px;
+        line-height: 1.5;
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+        font-family: "DejaVu Sans", sans-serif;
+        color: var(--clr-light);
+      }
+      .font-heading {
+        font-weight: bold;
+        text-align: center;
+      }
+
+      /* ---------- HEADER ---------- */
+      header {
+        display: flex;
+        justify-content: space-between;
+        gap: 30px;
+      }
+
+      .header-left,
+      .header-right {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      header > section > div {
+        background-color: var(--clr-dark);
+        padding: var(--padding-12);
+        border-radius: var(--radius);
+      }
+
+      .header-left-info {
+        display: grid;
+        grid-template-columns: 30% 30% 30%;
+        justify-content: space-between;
+        align-items: center;
+        background: white;
+        padding: 0px;
+        border-radius: 15px;
+      }
+
+      .header-left-info > div {
+        background-color: var(--clr-dark);
+        border-radius: var(--radius);
+        display: inline-block;
+        display: flex;
+        gap: 5px;
+        align-items: center;
+        padding: var(--padding-12);
+      }
+
+      .header-right > div:last-child {
+        flex: 1;
+      }
+
+      /* ---------- MAIN ---------- */
+      main {
+        display: flex;
+        flex-direction: column;
+        gap: 17px;
+      }
+      
+      .main-section {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      
+      .main-section-heading {
+        background-color: var(--clr-dark);
+        border-radius: var(--radius);
+        padding: 10px;
+      }
+      
+      .main-section > div:last-child {
+        background-color: var(--clr-light);
+        color: var(--clr-dark);
+        border-radius: 30px;
+        padding: 10px 10px 17px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <section class="header-left">
+        <div class="header-left-info">
+          <div><span>Période:</span> <span>{{ lesson_data.period }}</span></div>
+          <div><span>Semaine:</span> <span>{{ lesson_data.week }}</span></div>
+          <div><span>Séance:</span> <span>{{ lesson_data.session }}</span></div>
+        </div>
+      </section>
+      <section class="header-right">
+        <div class="header-objectif font-heading">🎯 Objectifs:</div>
+        <div>{{ lesson_data.objective }}</div>
+      </section>
+    </header>
+    <main>
+      {% for step in lesson_data.steps %}
+      <div class="main-section">
+        <div class="main-section-heading font-heading">
+          {{ step.icon }} {{ step.name }}{% if step.duration %}: {{ step.duration }}{% endif %}
+        </div>
+        <div>{{ step.content }}</div>
+      </div>
+      {% endfor %}
+    </main>
+  </body>
+</html>
