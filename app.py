@@ -4,7 +4,7 @@ from flask_cors import CORS
 import json
 
 # Import from main and preprocess_data
-from pdf_generator import generate_pdf_from_lesson_data, process_with_ai
+from pdf_generator import generate_pdf_from_lesson_data, process_with_ai, generate_mindmap_from_lesson_data
 # Trigger reload, process_with_ai
 from preprocess_data import extract_metadata_from_filename, extract_text_from_pptx, update_lessons_registry
 from cache import lesson_cache
@@ -39,10 +39,15 @@ def generate():
     pdf_filename = f"Period{meta['period']}_Week{meta['week']}_Session{meta['session']}.pdf"
     pdf_path = generate_pdf_from_lesson_data(lesson_data, pdf_filename)
     
+    # Generate Mind Map
+    mindmap_filename = f"MindMap_Period{meta['period']}_Week{meta['week']}_Session{meta['session']}.pdf"
+    mindmap_path = generate_mindmap_from_lesson_data(lesson_data, mindmap_filename)
+    
     return jsonify({
         "title": meta["title"],
         "lesson_data": lesson_data,
-        "pdf_path": pdf_path
+        "pdf_path": pdf_path,
+        "mindmap_pdf_path": mindmap_path
     })
 
 @app.route("/generate_from_id/<int:lesson_id>", methods=["POST"])
@@ -62,18 +67,44 @@ def generate_from_id(lesson_id):
     pdf_filename = f"{lesson['title']}.pdf"
     pdf_path = generate_pdf_from_lesson_data(lesson_data, pdf_filename)
 
+    mindmap_filename = f"MindMap_{lesson['title']}.pdf"
+    mindmap_path = generate_mindmap_from_lesson_data(lesson_data, mindmap_filename)
+
     return jsonify({
         "title": lesson["title"],
         "lesson_data": lesson_data,
-        "pdf_path": pdf_path
+        "pdf_path": pdf_path,
+        "mindmap_pdf_path": mindmap_path
     })
+
+import threading
+import time
+
+def delete_file_later(file_path, delay=120):
+    """Delete a file after a specified delay in seconds."""
+    def delayed_delete():
+        time.sleep(delay)
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                print(f"🗑️ Deleted temporary file: {file_path}")
+        except Exception as e:
+            print(f"❌ Error deleting file {file_path}: {e}")
+            
+    thread = threading.Thread(target=delayed_delete)
+    thread.daemon = True
+    thread.start()
 
 @app.route("/download_pdf/<filename>")
 def download_pdf(filename):
-    """Serve a generated PDF for download."""
+    """Serve a generated PDF for download and schedule its deletion."""
     pdf_path = os.path.join("output_pdfs", filename)
     if not os.path.exists(pdf_path):
         return jsonify({"error": "PDF not found"}), 404
+        
+    # Schedule deletion after 2 minutes (120 seconds)
+    delete_file_later(pdf_path, delay=120)
+    
     return send_file(pdf_path, as_attachment=True)
 
 @app.route("/lessons", methods=["GET"])

@@ -278,6 +278,9 @@ Lesson slides content:
         print(f"❌ Missing required field: {e}")
         return None
 
+    # Inject title into lesson_data
+    lesson_data["title"] = title
+    
     return lesson_data
 
 
@@ -324,6 +327,45 @@ def generate_pdf_from_lesson_data(lesson_data, pdf_filename):
         browser.close()
 
     print(f"✅ PDF created: {pdf_path}")
+    return pdf_path
+
+
+def generate_mindmap_from_lesson_data(lesson_data, pdf_filename):
+    """Generate a mind map PDF from lesson data."""
+    print("🧠 Generating Mind Map...")
+    
+    # 1️⃣ Render HTML with Jinja2
+    env = Environment(loader=FileSystemLoader("templates"))
+    template = env.get_template("template_mindmap.html")
+    html_content = template.render(lesson_data=lesson_data)
+
+    # 2️⃣ Save temporary HTML file
+    os.makedirs("temp_html", exist_ok=True)
+    html_path = os.path.join("temp_html", "temp_mindmap.html")
+    with open(html_path, "w", encoding="utf-8") as f:
+        f.write(html_content)
+
+    # 3️⃣ Define PDF output path
+    os.makedirs("output_pdfs", exist_ok=True)
+    pdf_path = os.path.join("output_pdfs", pdf_filename)
+
+    # 4️⃣ Render and export with Playwright (headless Chromium)
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, args=["--lang=ar"])
+        page = browser.new_page()
+        page.goto(f"file://{os.path.abspath(html_path)}")
+        
+        # Portrait orientation for mind maps
+        page.pdf(
+            path=pdf_path,
+            format="A4",
+            landscape=False,
+            print_background=True,
+            margin={"top": "1cm", "bottom": "1cm", "left": "1cm", "right": "1cm"}
+        )
+        browser.close()
+
+    print(f"✅ Mind Map PDF created: {pdf_path}")
     return pdf_path
 
 

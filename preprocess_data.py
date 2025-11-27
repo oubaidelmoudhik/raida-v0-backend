@@ -30,6 +30,7 @@ def extract_metadata_from_filename(filename: str):
         # Subject
         if parts[0].upper() == "FR": metadata["subject"] = "français"
         elif parts[0].upper() == "MATH": metadata["subject"] = "mathématiques"
+        elif parts[0].upper() == "AR": metadata["subject"] = "langue arabe"
         
         # Level
         if parts[1].startswith("N"): metadata["level"] = parts[1][1:]
@@ -49,6 +50,7 @@ def extract_metadata_from_filename(filename: str):
             lower = part.lower()
             if "français" in lower: metadata["subject"] = "français"
             elif "math" in lower: metadata["subject"] = "mathématiques"
+            elif "arabe" in lower: metadata["subject"] = "langue arabe"
             
             if lower.startswith("niv"): metadata["level"] = lower.replace("niv", "")
             

@@ -10,6 +10,7 @@ instance/*
 .webassets-cache
 backend/.env
 .env
+backend/output_pdfs
 
 ### Flask.Python Stack ###
 # Byte-compiled / optimized / DLL files

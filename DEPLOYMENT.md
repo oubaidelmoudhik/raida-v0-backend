@@ -60,6 +60,7 @@ This script will:
 ## Troubleshooting
 
 - **Logs**: Check application logs with `journalctl -u raida -f`
+- **Environment**: Ensure `.env` exists in `/var/www/raida-backend/` and contains `OPENAI_API_KEY`.
 - **Permissions**: Ensure `/var/www/raida-backend` is owned by `ubuntu:ubuntu`
 - **Playwright**: If PDF generation fails, check if all system dependencies are installed (see `setup_ec2.sh`)
 

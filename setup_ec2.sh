@@ -24,6 +24,14 @@ source venv/bin/activate
 # Install Python dependencies
 pip install -r requirements.txt
 
+# Ensure .env exists
+if [ ! -f .env ]; then
+    echo "Creating template .env file..."
+    echo "OPENAI_API_KEY=your_key_here" > .env
+    echo "FLASK_DEBUG=0" >> .env
+    echo "⚠️  Please update .env with your real API key!"
+fi
+
 # Install Playwright browsers
 playwright install chromium
 playwright install-deps chromium
