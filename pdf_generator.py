@@ -6,6 +6,7 @@ from jinja2 import Environment, FileSystemLoader
 from playwright.sync_api import sync_playwright
 from dotenv import load_dotenv
 from preprocess_data import extract_metadata_from_filename
+from cache import lesson_cache
 
 load_dotenv()
 
@@ -81,6 +82,12 @@ def process_with_ai(title, subject, level, period, week, session, content):
     is_math = "math" in subj_lower
     is_arabe = "arabe" in subj_lower
     language = "Arabic" if (is_math or is_arabe) else "French"
+    
+    # 🔍 Check cache first
+    cached_data = lesson_cache.get(content, language, subject, str(session))
+    if cached_data:
+        print(f"⚡ Returning cached lesson data (saved API call!)")
+        return cached_data
     
     # Get specific steps
     specific_steps = get_lesson_steps(subject, session)
@@ -259,6 +266,10 @@ Lesson slides content:
             return None
         
         print(f"✅ Successfully extracted {len(lesson_data.get('steps', []))} lesson steps")
+        
+        # 💾 Store in cache for future use
+        lesson_cache.set(content, language, subject, str(session), lesson_data)
+        
     except json.JSONDecodeError as e:
         print("❌ Invalid JSON received:", e)
         print("Raw output:\n", raw_result)

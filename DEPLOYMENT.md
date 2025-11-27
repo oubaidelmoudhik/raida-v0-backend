@@ -1,56 +1,68 @@
-# Render Deployment Guide
+# AWS EC2 Deployment Guide
 
 ## Files Added/Updated
 
 1. **requirements.txt** – Includes all dependencies (`gunicorn`, `openai`, `python-pptx`, `Jinja2`, `python-dotenv`, etc.)
-2. **runtime.txt** – Specifies Python 3.13 (optional for Render, but kept for clarity)
-3. **build.sh** – Installs Playwright browsers needed for PDF generation
-4. **Procfile** – `web: gunicorn app:app` (used by Render when not using a Dockerfile)
-5. **render.yaml** – Render service definition (added in the backend folder)
+2. **setup_ec2.sh** – Script to automate server setup (installs Python, Playwright, Nginx, Systemd service)
+3. **pdf_generator.py** – Renamed from `main.py` for clarity
+4. **app.py** – Updated to use `pdf_generator.py` and shared logic
 
-## Render Configuration
+## Deployment Steps
 
-### 1. Create `render.yaml`
-Create a file named `render.yaml` in the backend directory with the following content:
+### 1. Launch EC2 Instance
+- **OS**: Ubuntu 22.04 LTS (recommended)
+- **Instance Type**: t3.small or larger (Playwright needs some RAM)
+- **Security Group**: Allow inbound traffic on ports 22 (SSH), 80 (HTTP), and 443 (HTTPS)
 
-```yaml
-services:
-  - type: web
-    name: raida-backend
-    env: python
-    buildCommand: pip install -r requirements.txt && bash build.sh
-    startCommand: gunicorn app:app
-    envVars:
-      - key: OPENAI_API_KEY
-        sync: false
-      - key: FLASK_DEBUG
-        sync: false
+### 2. Connect to Instance
+```bash
+ssh -i key.pem ubuntu@your-ec2-ip
 ```
 
-Render will automatically provide the `PORT` environment variable; you do not need to set it manually.
+### 3. Clone Repository
+```bash
+git clone https://github.com/oubaidelmoudhik/raida-v0-backend.git
+sudo mv raida-v0-backend /var/www/raida-backend
+cd /var/www/raida-backend
+```
 
-### 2. Environment Variables
-Add the following variables in the Render dashboard for the service:
-- `OPENAI_API_KEY` – Your OpenAI API key
-- `FLASK_DEBUG` – Set to `0` for production (optional)
+### 4. Configure Environment
+Create `.env` file:
+```bash
+sudo nano .env
+```
+Add your variables:
+```
+OPENAI_API_KEY=your_key_here
+FLASK_DEBUG=0
+```
 
-### 3. Build & Deploy
-Render will run the `buildCommand` defined in `render.yaml` which installs dependencies and the Playwright browsers. After the build completes, it will execute the `startCommand` (`gunicorn app:app`).
+### 5. Run Setup Script
+Make the script executable and run it:
+```bash
+chmod +x setup_ec2.sh
+./setup_ec2.sh
+```
 
-### 4. Static & Data Files
-Ensure the following directories are included in the repository so Render can serve them:
-- `static/fonts` – Contains the Cairo font files used for Arabic PDFs
-- `data/lessons.json` – Lesson metadata accessed by the API
+This script will:
+- Update system packages
+- Install Python, pip, and venv
+- Install Playwright dependencies and browsers
+- Install Python requirements
+- Set up Gunicorn as a systemd service
+- Configure Nginx as a reverse proxy
 
-### 5. Frontend (Vercel) Adjustments
-Update your Vercel frontend to point to the Render backend URL:
-- Replace any occurrence of `http://localhost:5000` with `https://<your-render-service>.onrender.com`
+### 6. Verify Deployment
+- Check service status: `sudo systemctl status raida`
+- Check Nginx status: `sudo systemctl status nginx`
+- Visit your EC2 IP address in the browser
 
-## Important Notes
-- **Playwright**: The `build.sh` script installs Chromium, which Render’s build environment supports.
-- **Procfile**: Render can use the Procfile if you prefer not to use `render.yaml`; the start command remains `gunicorn app:app`.
-- **Testing Locally**: Run `gunicorn app:app` locally to verify the production entry point before deploying.
+## Troubleshooting
+
+- **Logs**: Check application logs with `journalctl -u raida -f`
+- **Permissions**: Ensure `/var/www/raida-backend` is owned by `ubuntu:ubuntu`
+- **Playwright**: If PDF generation fails, check if all system dependencies are installed (see `setup_ec2.sh`)
 
 ---
 
-All previous Railway‑specific sections have been removed. This guide now focuses solely on deploying the backend to Render.
+All previous Render/Railway instructions have been removed. This guide focuses on AWS EC2.

@@ -8,6 +8,7 @@
 instance/*
 !instance/.gitignore
 .webassets-cache
+backend/.env
 .env
 
 ### Flask.Python Stack ###
@@ -171,3 +172,5 @@ cython_debug/
 #.idea/
 
 # End of https://www.toptal.com/developers/gitignore/api/flask
+.env
+.env

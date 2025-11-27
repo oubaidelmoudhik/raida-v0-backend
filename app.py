@@ -4,9 +4,10 @@ from flask_cors import CORS
 import json
 
 # Import from main and preprocess_data
-from main import generate_pdf_from_lesson_data, process_with_ai
+from pdf_generator import generate_pdf_from_lesson_data, process_with_ai
 # Trigger reload, process_with_ai
-from preprocess_data import extract_metadata_from_filename, extract_text_from_pptx
+from preprocess_data import extract_metadata_from_filename, extract_text_from_pptx, update_lessons_registry
+from cache import lesson_cache
 
 app = Flask(__name__)
 CORS(app)
@@ -75,79 +76,29 @@ def download_pdf(filename):
         return jsonify({"error": "PDF not found"}), 404
     return send_file(pdf_path, as_attachment=True)
 
-def scan_lessons_directory():
-    """Scan lessons directory for new PPTX files and add them to lessons.json."""
-    lessons_dir = "lessons"
-    json_path = "data/lessons.json"
-    
-    if not os.path.exists(lessons_dir):
-        os.makedirs(lessons_dir)
-        return
-
-    # Load existing lessons
-    if os.path.exists(json_path):
-        with open(json_path, "r", encoding="utf-8") as f:
-            try:
-                lessons = json.load(f)
-            except json.JSONDecodeError:
-                lessons = []
-    else:
-        lessons = []
-
-    # Get existing filenames
-    existing_filenames = {l.get("filename") for l in lessons}
-    
-    # Scan directory
-    files = [f for f in os.listdir(lessons_dir) if f.endswith(".pptx")]
-    new_files_found = False
-
-    for filename in files:
-        if filename not in existing_filenames:
-            print(f"🔍 New lesson found: {filename}")
-            pptx_path = os.path.join(lessons_dir, filename)
-            
-            # Extract metadata and content
-            try:
-                meta = extract_metadata_from_filename(filename)
-                content = extract_text_from_pptx(pptx_path)
-                
-                # Generate new ID
-                new_id = max([l["id"] for l in lessons], default=0) + 1
-                
-                new_lesson = {
-                    "id": new_id,
-                    "title": meta["title"],
-                    "subject": meta["subject"],
-                    "level": meta["level"],
-                    "period": meta["period"],
-                    "week": meta["week"],
-                    "session": meta["session"],
-                    "filename": filename,
-                    "objective": "......", # Placeholder
-                    "content": content
-                }
-                
-                lessons.append(new_lesson)
-                new_files_found = True
-                print(f"✅ Added lesson: {filename}")
-            except Exception as e:
-                print(f"❌ Error processing {filename}: {e}")
-
-    # Save if changes made
-    if new_files_found:
-        with open(json_path, "w", encoding="utf-8") as f:
-            json.dump(lessons, f, ensure_ascii=False, indent=2)
-            print("💾 lessons.json updated")
-
 @app.route("/lessons", methods=["GET"])
 def get_lessons():
     # Scan for new files first
-    scan_lessons_directory()
+    update_lessons_registry()
     
     with open("data/lessons.json", "r", encoding="utf-8") as f:
         lessons = json.load(f)
     # Return full lesson objects
     return jsonify(lessons)
+    
+
+
+@app.route("/cache/stats", methods=["GET"])
+def cache_stats():
+    """Get cache statistics."""
+    stats = lesson_cache.get_stats()
+    return jsonify(stats)
+
+@app.route("/cache/clear", methods=["POST"])
+def clear_cache():
+    """Clear all cache entries."""
+    lesson_cache.clear()
+    return jsonify({"message": "Cache cleared successfully"})
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

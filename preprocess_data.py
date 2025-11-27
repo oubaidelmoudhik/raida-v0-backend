@@ -88,42 +88,75 @@ def extract_objective(content: str):
             return line.strip()
     return "......"
 
-def main():
+def update_lessons_registry(lessons_dir: str = LESSONS_DIR, json_path: str = OUTPUT_JSON):
+    """
+    Scan lessons directory for new PPTX files and update lessons.json.
+    Returns True if changes were made.
+    """
+    if not os.path.exists(lessons_dir):
+        os.makedirs(lessons_dir, exist_ok=True)
+        return False
+
+    # Load existing lessons
     lessons = []
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                lessons = json.load(f)
+        except json.JSONDecodeError:
+            lessons = []
     
-    # Ensure lessons dir exists
-    if not os.path.exists(LESSONS_DIR):
-        print(f"Directory {LESSONS_DIR} not found.")
-        return
+    # Get existing filenames
+    existing_filenames = {l.get("filename") for l in lessons}
+    
+    # Scan directory
+    files = sorted([f for f in os.listdir(lessons_dir) if f.endswith(".pptx")])
+    new_files_found = False
 
-    files = sorted([f for f in os.listdir(LESSONS_DIR) if f.endswith(".pptx")])
-    
     for filename in files:
-        path = os.path.join(LESSONS_DIR, filename)
-        print(f"Processing {filename}...")
-        
-        content = extract_text_from_pptx(path)
-        meta = extract_metadata_from_filename(filename)
-        objective = extract_objective(content)
-        
-        lessons.append({
-            "id": len(lessons) + 1,
-            "title": meta["title"],
-            "subject": meta["subject"],
-            "level": meta["level"],
-            "period": meta["period"],
-            "week": meta["week"],
-            "session": meta["session"],
-            "filename": filename,
-            "objective": objective,
-            "content": content
-        })
+        if filename not in existing_filenames:
+            print(f"🔍 New lesson found: {filename}")
+            pptx_path = os.path.join(lessons_dir, filename)
+            
+            try:
+                content = extract_text_from_pptx(pptx_path)
+                meta = extract_metadata_from_filename(filename)
+                objective = extract_objective(content)
+                
+                # Generate new ID
+                new_id = max([l["id"] for l in lessons], default=0) + 1
+                
+                new_lesson = {
+                    "id": new_id,
+                    "title": meta["title"],
+                    "subject": meta["subject"],
+                    "level": meta["level"],
+                    "period": meta["period"],
+                    "week": meta["week"],
+                    "session": meta["session"],
+                    "filename": filename,
+                    "objective": objective,
+                    "content": content
+                }
+                
+                lessons.append(new_lesson)
+                new_files_found = True
+                print(f"✅ Added lesson: {filename}")
+            except Exception as e:
+                print(f"❌ Error processing {filename}: {e}")
 
-    os.makedirs("data", exist_ok=True)
-    with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
-        json.dump(lessons, f, ensure_ascii=False, indent=2)
+    if new_files_found:
+        os.makedirs(os.path.dirname(json_path), exist_ok=True)
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(lessons, f, ensure_ascii=False, indent=2)
+        print(f"💾 {json_path} updated")
+        return True
     
-    print(f"Processed {len(lessons)} lessons to {OUTPUT_JSON}")
+    return False
+
+def main():
+    print("Scanning for new lessons...")
+    update_lessons_registry()
 
 if __name__ == "__main__":
     main()
