@@ -17,6 +17,7 @@ CORS(app, resources={
         "origins": [
             "http://localhost:3000",  # Local development
             "https://*.vercel.app",   # Vercel preview deployments
+            "https://*.trycloudflare.com",   # Cloudflare
             "https://your-domain.com" # Your production domain (update this)
         ],
         "methods": ["GET", "POST", "OPTIONS"],
