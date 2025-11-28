@@ -64,6 +64,27 @@ This script will:
 - **Permissions**: Ensure `/var/www/raida-backend` is owned by `ubuntu:ubuntu`
 - **Playwright**: If PDF generation fails, check if all system dependencies are installed (see `setup_ec2.sh`)
 
+## Updating the App
+To update the code on the server:
+```bash
+cd /var/www/raida-backend
+git pull
+sudo systemctl restart raida
+```
+
+## SSL Setup (Cloudflare Tunnel)
+Since the frontend is on Vercel (HTTPS), the backend must also be HTTPS.
+1. Install Cloudflare Tunnel on EC2:
+   ```bash
+   curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+   sudo dpkg -i cloudflared.deb
+   ```
+2. Start Tunnel:
+   ```bash
+   cloudflared tunnel --url http://localhost:5000
+   ```
+3. Copy the `https://....trycloudflare.com` URL and update your Vercel Environment Variable.
+
 ---
 
 All previous Render/Railway instructions have been removed. This guide focuses on AWS EC2.

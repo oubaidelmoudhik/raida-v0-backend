@@ -14,15 +14,9 @@ app = Flask(__name__)
 # Configure CORS to allow Vercel frontend
 CORS(app, resources={
     r"/*": {
-        "origins": [
-            "http://localhost:3000",  # Local development
-            "https://*.vercel.app",   # Vercel preview deployments
-            "https://*.trycloudflare.com",   # Cloudflare
-            "https://your-domain.com" # Your production domain (update this)
-        ],
+        "origins": "*",
         "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type"],
-        "supports_credentials": True
+        "allow_headers": ["Content-Type"]
     }
 })
 
