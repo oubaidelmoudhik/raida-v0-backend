@@ -10,7 +10,24 @@ from preprocess_data import extract_metadata_from_filename, extract_text_from_pp
 from cache import lesson_cache
 
 app = Flask(__name__)
-CORS(app)
+
+# Configure CORS to allow Vercel frontend
+CORS(app, resources={
+    r"/*": {
+        "origins": [
+            "http://localhost:3000",  # Local development
+            "https://*.vercel.app",   # Vercel preview deployments
+            "https://your-domain.com" # Your production domain (update this)
+        ],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type"],
+        "supports_credentials": True
+    }
+})
+
+@app.route("/")
+def home():
+    return {"status": "running", "service": "raida-backend"}
 
 @app.route('/generate', methods=['POST'])
 def generate():
