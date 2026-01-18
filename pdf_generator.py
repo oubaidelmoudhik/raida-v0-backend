@@ -135,6 +135,10 @@ Analyze the lesson content and fill in the content for each step. Each step shou
 - Example: "يقرأ التلاميذ النص ويستخرجون الكلمات الصعبة."
 - Avoid passive voice or simple copying of slide text.
 
+**SPECIFIC CONTENT RULES (CRITICAL):**
+- For the step **"الافتتاح"** (Opening): The content MUST explicitly mention correcting homework and mental arithmetic (تصحيح الواجبات المنزلية والحساب الذهني), adapting the specific details to the lesson's context.
+- For the step **"النمذجة"** (Modeling): Students do NOT participate in this step. The description must state that they are attentive/listening to the teacher's explanation (ينتبهون للشرح) without active participation.
+
 Follow **exactly** this structure:
 {{
   "lesson_data": {{
@@ -236,7 +240,7 @@ Lesson slides content:
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
-        temperature=0.1,
+        temperature=0.2,
         messages=[
             {"role": "system", "content": f"You generate structured JSON for a teacher's lesson journal in {language}."},
             {"role": "user", "content": prompt}
@@ -278,30 +282,51 @@ Lesson slides content:
         print(f"❌ Missing required field: {e}")
         return None
 
-    # Inject title into lesson_data
+    # Inject title and subject into lesson_data
     lesson_data["title"] = title
+    lesson_data["subject"] = subject
     
     return lesson_data
 
+
+def get_teacher_info(language="fr"):
+    """Load teacher info from JSON based on language."""
+    teacher_info_path = os.path.join(os.path.dirname(__file__), ".", "teacherInfo.json")
+    if os.path.exists(teacher_info_path):
+        try:
+            with open(teacher_info_path, "r", encoding="utf-8") as f:
+                info = json.load(f)
+                if isinstance(info, list) and len(info) > 0:
+                    return info[0].get(language, {})
+        except Exception as e:
+            print(f"❌ Error loading teacher info: {e}")
+    return {}
 
 def generate_pdf_from_lesson_data(lesson_data, pdf_filename):
     # Select template based on subject
     subject = lesson_data.get("subject", "français").lower()
     
-    if "math" in subject:
+    # Determine template and language
+    if "math" in subject or "رياضيات" in subject:
         template_name = "template_math.html"
+        lang_key = "ar"
         print("📐 Using Math template (Arabic)")
-    elif "arabe" in subject:
+    elif "arabe" in subject or "عربية" in subject:
         template_name = "template_arabe.html"
+        lang_key = "ar"
         print("🌙 Using Arabic template")
     else:
         template_name = "template_french.html"
+        lang_key = "fr"
         print("📚 Using French template")
     
+    # Load teacher info
+    teacher_data = get_teacher_info(lang_key)
+
     # 1️⃣ Render HTML with Jinja2
     env = Environment(loader=FileSystemLoader("templates"))
     template = env.get_template(template_name)
-    html_content = template.render(lesson_data=lesson_data)
+    html_content = template.render(lesson_data=lesson_data, teacher_data=teacher_data)
 
     # 2️⃣ Save temporary HTML file
     os.makedirs("temp_html", exist_ok=True)
@@ -330,43 +355,7 @@ def generate_pdf_from_lesson_data(lesson_data, pdf_filename):
     return pdf_path
 
 
-def generate_mindmap_from_lesson_data(lesson_data, pdf_filename):
-    """Generate a mind map PDF from lesson data."""
-    print("🧠 Generating Mind Map...")
-    
-    # 1️⃣ Render HTML with Jinja2
-    env = Environment(loader=FileSystemLoader("templates"))
-    template = env.get_template("template_mindmap.html")
-    html_content = template.render(lesson_data=lesson_data)
 
-    # 2️⃣ Save temporary HTML file
-    os.makedirs("temp_html", exist_ok=True)
-    html_path = os.path.join("temp_html", "temp_mindmap.html")
-    with open(html_path, "w", encoding="utf-8") as f:
-        f.write(html_content)
-
-    # 3️⃣ Define PDF output path
-    os.makedirs("output_pdfs", exist_ok=True)
-    pdf_path = os.path.join("output_pdfs", pdf_filename)
-
-    # 4️⃣ Render and export with Playwright (headless Chromium)
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True, args=["--lang=ar"])
-        page = browser.new_page()
-        page.goto(f"file://{os.path.abspath(html_path)}")
-        
-        # Portrait orientation for mind maps
-        page.pdf(
-            path=pdf_path,
-            format="A4",
-            landscape=False,
-            print_background=True,
-            margin={"top": "1cm", "bottom": "1cm", "left": "1cm", "right": "1cm"}
-        )
-        browser.close()
-
-    print(f"✅ Mind Map PDF created: {pdf_path}")
-    return pdf_path
 
 
 # ---------------------------

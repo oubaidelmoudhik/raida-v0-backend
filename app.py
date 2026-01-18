@@ -4,7 +4,7 @@ from flask_cors import CORS
 import json
 
 # Import from main and preprocess_data
-from pdf_generator import generate_pdf_from_lesson_data, process_with_ai, generate_mindmap_from_lesson_data
+from pdf_generator import generate_pdf_from_lesson_data, process_with_ai
 # Trigger reload, process_with_ai
 from preprocess_data import extract_metadata_from_filename, extract_text_from_pptx, update_lessons_registry
 from cache import lesson_cache
@@ -51,15 +51,10 @@ def generate():
     pdf_filename = f"Period{meta['period']}_Week{meta['week']}_Session{meta['session']}.pdf"
     pdf_path = generate_pdf_from_lesson_data(lesson_data, pdf_filename)
     
-    # Generate Mind Map
-    mindmap_filename = f"MindMap_Period{meta['period']}_Week{meta['week']}_Session{meta['session']}.pdf"
-    mindmap_path = generate_mindmap_from_lesson_data(lesson_data, mindmap_filename)
-    
     return jsonify({
         "title": meta["title"],
         "lesson_data": lesson_data,
-        "pdf_path": pdf_path,
-        "mindmap_pdf_path": mindmap_path
+        "pdf_path": pdf_path
     })
 
 @app.route("/generate_from_id/<int:lesson_id>", methods=["POST"])
@@ -79,14 +74,10 @@ def generate_from_id(lesson_id):
     pdf_filename = f"{lesson['title']}.pdf"
     pdf_path = generate_pdf_from_lesson_data(lesson_data, pdf_filename)
 
-    mindmap_filename = f"MindMap_{lesson['title']}.pdf"
-    mindmap_path = generate_mindmap_from_lesson_data(lesson_data, mindmap_filename)
-
     return jsonify({
         "title": lesson["title"],
         "lesson_data": lesson_data,
-        "pdf_path": pdf_path,
-        "mindmap_pdf_path": mindmap_path
+        "pdf_path": pdf_path
     })
 
 import threading

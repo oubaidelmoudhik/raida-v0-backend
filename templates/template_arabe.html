@@ -127,11 +127,62 @@
         border-radius: 30px;
         padding: 10px 10px 17px;
         direction: rtl;
+        direction: rtl;
         text-align: right;
+      }
+
+      /* ---------- TOP INFO ---------- */
+      .top-info-container {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .mindmap-title {
+        background-color: var(--clr-dark);
+        color: var(--clr-light);
+        padding: 10px;
+        border-radius: var(--radius);
+        text-align: center;
+        font-size: 1.5rem;
+        font-weight: bold;
+        width: 100%;
+      }
+
+      .teacher-info-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+
+      .teacher-info-grid > div {
+        background-color: var(--clr-dark);
+        border-radius: var(--radius);
+        padding: var(--padding-12);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        width: 100%;
+      }
+      
+      .teacher-info-label {
+        font-weight: bold; 
+        opacity: 0.8;
       }
     </style>
   </head>
   <body>
+    <div class="top-info-container">
+        <div class="mindmap-title">الخطاطة الذهنية</div>
+        {% if teacher_data %}
+        <div class="teacher-info-grid">
+            {% for key, value in teacher_data.items() %}
+            <div><span class="teacher-info-label">{{ key }}:</span> <span>{{ value }}</span></div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
     <header>
       <section class="header-right">
         <div class="header-objectif font-heading">🎯 الأهداف:</div>
