@@ -289,18 +289,34 @@ Lesson slides content:
     return lesson_data
 
 
-def get_teacher_info(language="fr"):
-    """Load teacher info from JSON based on language."""
+def get_teacher_info(language="fr", subject_name=""):
+    """Load teacher info from JSON based on language, removing blank optional fields."""
     teacher_info_path = os.path.join(os.path.dirname(__file__), ".", "teacherInfo.json")
+    final_info = {}
+    
     if os.path.exists(teacher_info_path):
         try:
             with open(teacher_info_path, "r", encoding="utf-8") as f:
                 info = json.load(f)
                 if isinstance(info, list) and len(info) > 0:
-                    return info[0].get(language, {})
+                    raw_data = info[0].get(language, {})
+                    
+                    # exclude 'Matière'/'المادة' from file to strictly use document info
+                    keys_to_exclude = ["Matière", "المادة"]
+                    
+                    for k, v in raw_data.items():
+                        if k not in keys_to_exclude and v and str(v).strip():
+                            final_info[k] = v
         except Exception as e:
             print(f"❌ Error loading teacher info: {e}")
-    return {}
+            
+    # Auto-inject Subject if not manually set (though user requested manual setting from document)
+    if language == "ar":
+        final_info["المادة"] = subject_name if subject_name else "الرياضيات" # Default fallback
+    else:
+        final_info["Matière"] = subject_name if subject_name else "Français"
+        
+    return final_info
 
 def generate_pdf_from_lesson_data(lesson_data, pdf_filename):
     # Select template based on subject
@@ -321,7 +337,12 @@ def generate_pdf_from_lesson_data(lesson_data, pdf_filename):
         print("📚 Using French template")
     
     # Load teacher info
-    teacher_data = get_teacher_info(lang_key)
+    # Pass the detected subject name for display
+    display_subject = "الرياضيات" if ("math" in subject or "رياضيات" in subject) else \
+                      "اللغة العربية" if ("arabe" in subject or "عربية" in subject) else \
+                      "Français"
+                      
+    teacher_data = get_teacher_info(lang_key, display_subject)
 
     # 1️⃣ Render HTML with Jinja2
     env = Environment(loader=FileSystemLoader("templates"))
